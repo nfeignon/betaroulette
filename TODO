@@ -1,0 +1,6 @@
+
+- si un client ne répond pas à la demande de mise en relation pendant un certain temps, ça serait bien de le virer
+- bouton next, actif seulement si connected=true   ---> DONNE
+- corriger le next, cf FIXME
+- ajouter le nombre de clients sur la page
+- chat

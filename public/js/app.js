@@ -1,7 +1,6 @@
 
 
 
-
 // the norm is not yet fully normalized, this is temporary, TODO update
 var RTCPeerConnection = window.PeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection; 
 navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
@@ -32,7 +31,7 @@ socket.onmessage = function(message) {
             startWhenReady();
             break;
 
-        case 'received_offer' : 
+        case 'received_offer': 
             console.log('received offer', msg.data);
             pc.setRemoteDescription(new RTCSessionDescription(msg.data));
             pc.createAnswer(function(description) {
@@ -45,18 +44,19 @@ socket.onmessage = function(message) {
             }, null, mediaConstraints);
             break;
 
-        case 'received_answer' :
+        case 'received_answer':
             console.log('received answer');
             if(!connected) {
                 pc.setRemoteDescription(new RTCSessionDescription(msg.data));
                 connected = true;
+                button.hidden = false;
                 socket.send(JSON.stringify({
                     type: 'connection_ok'
                 }));
             }
             break;
 
-        case 'received_candidate' :
+        case 'received_candidate':
             console.log('received candidate');
             var candidate = new RTCIceCandidate({
                 sdpMLineIndex: msg.data.label,
@@ -65,17 +65,40 @@ socket.onmessage = function(message) {
             pc.addIceCandidate(candidate);
             break;
 
+        case 'connection_ok':
+            connected = true;
+            button.hidden = false;
+            console.log('DEBUG: connection_ok msg received');
+            break;
+
+        case 'nexted':
+            console.log('You\'ve been nexted!');
+            connected = false;
+            button.hidden = true;
+            vid2.hidden = true;
+
+            restartPc();
+
+            socket.send(JSON.stringify({
+                type: 'next_ack'
+            }));
+
+            break;
+
+        case 'nb_clients':
+           
+            nbClients = msg.data;
+
+            break;
+
         case 'connection_closed':
             console.log('connection closed by peer');
             //alert('connection closed by peer');
             vid2.hidden = true;
-
-            pc.close();
-            pc = new RTCPeerConnection(configuration);      // FIXME : I'm not sure it's the best way to do this... But it works!
-            pc.addStream(stream);
-            addListenersToPc();
-
             connected = false;
+            button.hidden = true;
+
+            restartPc();
 
             socket.send(JSON.stringify({
                 type: 'remote_connection_closed'
@@ -93,7 +116,8 @@ socket.onmessage = function(message) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-
+var nbClients = 0;
+var button;
 var pc;
 var configuration = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
 var stream;
@@ -128,12 +152,20 @@ function addListenersToPc() {
         vid2.play();
     };
 }
-
 addListenersToPc();
 
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////
+function restartPc() {
+    pc.close();
+    pc = new RTCPeerConnection(configuration);                                  // FIXME : I'm not sure it's the best way to do this... But it works!
+    pc.addStream(stream);
+    addListenersToPc();
+}
 
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -181,11 +213,34 @@ function start() {
 }
 
 function next() {
-    
+    if (!connected) {
+        console.log('Error: you can\'t next someone if you\'re not connected!');            // sanity check
+        return;
+    }
 
+    console.log('Nexting this peer');
+    connected = false;
+    button.hidden = true;
+    vid2.hidden = true;
+
+    socket.send(JSON.stringify({
+        type: 'next'
+    }));
+
+    restartPc();
 }
 
 window.onload = function() {
+
+    button = document.getElementById("nextButton");
+    button.hidden = true;
+
+    if(button.addEventListener){
+        button.addEventListener("click", function() { next();});
+    } else {
+        button.attachEvent("click", function() { next();});
+    };
+
     broadcast();
 };
 
