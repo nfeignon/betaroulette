@@ -20,6 +20,7 @@ var io = ws.attach(server);
 io.clientsWaiting || (io.clientsWaiting = []);
 io.clientsInRooms || (io.clientsInRooms = 0);
 
+
 function isPeerAvailable(sock) {
     if (io.clientsWaiting.length > 1) {
         sock.send(JSON.stringify({
@@ -27,6 +28,7 @@ function isPeerAvailable(sock) {
         }));
     }
 }
+
 
 io.on('connection', function(socket) {
     console.log('------------------------------------------------');
@@ -85,7 +87,7 @@ io.on('connection', function(socket) {
                 }
 
                 if (destSock != null) {
-                    console.log('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + destSock.id);
+                    //console.log('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + destSock.id);
                     destSock.send(JSON.stringify(msg));
                 }
 
@@ -112,17 +114,14 @@ io.on('connection', function(socket) {
                 break;
 
             case 'close':
-                // do something ?  TODO TODO TODO
 
                 console.log('Client deconnecté ! id: ' + socket.id);
 
-                printId(ref);
-
-                // remove the socket of the disconnected client, add his partner to the waiting list
+                //printId(ref);
 
                 var pos = ref.indexOf(socket);
                 if (pos >= 0)
-                    ref.splice(pos, 1);     // remove socket of disconnected client   TODO normalement la socket est pas dedans !!!
+                    ref.splice(pos, 1);     // remove socket of disconnected client, if it exists
 
                 io.clientsInRooms -= 2;
 

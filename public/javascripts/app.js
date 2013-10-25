@@ -67,11 +67,13 @@ socket.onmessage = function(message) {
 
         case 'connection_closed':
             console.log('connection closed by peer');
-            alert('connection closed by peer');
+            //alert('connection closed by peer');
             vid2.hidden = true;
-            //pc.close();
-            //pc = new RTCPeerConnection(configuration);            // TODO // TODO // TODO // TODO // je suis sur que ca foire ici !!!!!!!!
-            //pc.addStream(stream);
+
+            pc.close();
+            pc = new RTCPeerConnection(configuration);      // FIXME : I'm not sure it's the best way to do this... But it works!
+            pc.addStream(stream);
+            addListenersToPc();
 
             connected = false;
 
@@ -105,25 +107,29 @@ var mediaConstraints = {
     }
 };
 
-pc.onicecandidate = function(e) {
-    if(e.candidate) {
-        socket.send(JSON.stringify({
-            type: 'received_candidate',
-            data: {
-                label: e.candidate.sdpMLineIndex,
-            id: e.candidate.sdpMid,
-            candidate: e.candidate.candidate
-            }
-        }));
-    }
-};
+function addListenersToPc() {
+    pc.onicecandidate = function(e) {
+        if(e.candidate) {
+            socket.send(JSON.stringify({
+                type: 'received_candidate',
+                data: {
+                    label: e.candidate.sdpMLineIndex,
+                id: e.candidate.sdpMid,
+                candidate: e.candidate.candidate
+                }
+            }));
+        }
+    };
 
-pc.onaddstream = function(e) {
-    console.log('start remote video stream');
-    vid2.src = window.URL.createObjectURL(e.stream);
-    vid2.play();
-};
+    pc.onaddstream = function(e) {
+        console.log('start remote video stream');
+        vid2.src = window.URL.createObjectURL(e.stream);
+        vid2.hidden = false;
+        vid2.play();
+    };
+}
 
+addListenersToPc();
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,7 +159,11 @@ function broadcast() {
         vid1.play();
 
     }, function(e) {
-        console.log('getUserMedia error: ' + e);
+        console.log('getUserMedia error: ' + e.name);
+        alert('Error: ' + e.name);
+        socket.send(JSON.stringify({
+            type: 'close'
+        }));
     });
 }
 
@@ -170,6 +180,11 @@ function start() {
     }, null, mediaConstraints);
 }
 
+function next() {
+    
+
+}
+
 window.onload = function() {
     broadcast();
 };
@@ -181,3 +196,5 @@ window.onbeforeunload = function() {
     pc.close();
     pc = null;
 };
+
+
