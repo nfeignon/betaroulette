@@ -2,9 +2,10 @@
 
 
 // the norm is not yet fully normalized, this is temporary, TODO update
-var RTCPeerConnection = window.PeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection; 
-navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
-
+//var RTCPeerConnection = window.PeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection; 
+//navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia;
+//var RTCIceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
+//var RTCSessionDescription = window.mozRTCSessionDescription || window.RTCSessionDescription;
 
 
 // the socket handles sending messages between peer connections while they are in the
@@ -16,6 +17,10 @@ console.log('socket param: ' + 'ws://' + window.location.host + window.location.
 socket.onopen = function() {
     sessionReady = true;
 };
+
+socket.onclose = function() {
+    console.log('ERROR: connection error');
+}
 
 socket.onmessage = function(message) {
     var msg = JSON.parse(message.data);
@@ -41,7 +46,11 @@ socket.onmessage = function(message) {
                     type: 'received_answer', 
                     data: description
                 }));
-            }, null, mediaConstraints);
+            },
+            function (err) {
+                console.error(err);
+            },
+            mediaConstraints);
             break;
 
         case 'received_answer':
@@ -168,8 +177,18 @@ function restartPc() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+function sendReadyMsg() {
+    if (isReady()) {
+        socket.send(JSON.stringify({
+            type: 'client_ready'
+        }));
+    }
+    else
+        setTimeout('sendReadyMsg()', 1000);
+}
 
 function startWhenReady() {
+
     if (isReady()) 
         start();
     else 
@@ -178,17 +197,22 @@ function startWhenReady() {
 }
 
 function isReady() {
+    console.log('stream ' + stream);
+    console.log('session Ready ' + sessionReady);
     return stream && sessionReady;
 }
 
 function broadcast() {
     
+
     // gets local video stream and renders to vid1
-    navigator.getUserMedia({audio: true, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
+    getUserMedia({audio: false, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
         stream = s;
         pc.addStream(s);
         vid1.src = window.URL.createObjectURL(s);
         vid1.play();
+
+        sendReadyMsg();
 
     }, function(e) {
         console.log('getUserMedia error: ' + e.name);
@@ -209,7 +233,11 @@ function start() {
             type: 'received_offer',
             data: description
         }));
-    }, null, mediaConstraints);
+    }, 
+    function(err) {
+        console.log('Error ' + err);
+    },
+    mediaConstraints);
 }
 
 function next() {

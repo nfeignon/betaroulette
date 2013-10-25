@@ -24,6 +24,8 @@ function isPeerAvailable(sock) {
         sock.send(JSON.stringify({
             type: 'peer_available'
         }));
+    } else {
+        console.log('ERROR in isPeerAvailable: ' + io.clientsWaiting.length + ' in wait queue');
     }
 }
 
@@ -45,7 +47,8 @@ io.on('connection', function(socket) {
     socket.id = uuid.v1();
     console.log('attributed id = ' + socket.id);
     
-    io.clientsWaiting.push(socket);
+    socket.connected = false;
+    socket.isReady = false;
 
     socket.send(JSON.stringify({
         type: 'assigned_id',
@@ -53,8 +56,6 @@ io.on('connection', function(socket) {
     }));
 
     sendNbOfClients(socket, io.clientsInRooms);
-
-    isPeerAvailable(socket);              // send msg of type 'peer_available' if someone is available to chat
 
     console.log('new client connected :  clientsWaiting size = ' + io.clientsWaiting.length);
 
@@ -64,7 +65,7 @@ io.on('connection', function(socket) {
         var msg, sock, i, ref;
         msg = JSON.parse(data);
 
-        console.log('recu un message de type ' + msg.type);
+        console.log('recu un message de type ' + msg.type + ' ' + socket.id);
 
         ref = io.clientsWaiting;
 
@@ -99,6 +100,14 @@ io.on('connection', function(socket) {
                 }
 
                 break;
+
+            case 'client_ready':
+
+                socket.isReady = true;
+                io.clientsWaiting.push(socket);
+                isPeerAvailable(socket);              // send msg of type 'peer_available' if someone is available to chat
+
+                break;
             
             case 'connection_ok':
 
@@ -108,7 +117,7 @@ io.on('connection', function(socket) {
                 }
 
                 destSock.send(JSON.stringify({
-                    'type': msg.type
+                    'type': 'connection_ok'
                 }));
 
                 var toDelete = [];
@@ -121,57 +130,75 @@ io.on('connection', function(socket) {
 
                 io.clientsInRooms += 2;
 
+                socket.connected = true;
+                destSock.connected = true;
+
                 console.log('CONNECTION OK, now ' + ref.length + ' clients waiting, ' + io.clientsInRooms + ' clients in communication.');
                 printId(ref);
                 break;
 
             case 'next':
-                var pos = ref.indexOf(socket);
-                if (pos >= 0) {
-                    console.log('ERROR: client\'s socket should not be in the waiting list');             // sanity check
-                    return;
-                }
+                if (socket.connected) {
 
-                if (destSock != null) {
-                    var pos = ref.indexOf(destSock);
+                    var pos = ref.indexOf(socket);
                     if (pos >= 0) {
-                        console.log('ERROR: remote socket should not be in the waiting list');
+                        console.log('ERROR: client\'s socket should not be in the waiting list');             // sanity check
                         return;
                     }
+
+                    if (destSock != null) {
+                        var pos = ref.indexOf(destSock);
+                        if (pos >= 0) {
+                            console.log('ERROR: remote socket should not be in the waiting list');
+                            return;
+                        }
+                    } else {
+                        console.log('ERROR: remote socket doesn\'t exist!');
+                        return;
+                    }
+
+                    destSock.send(JSON.stringify({        // tell peer that he has been nexted
+                        type: 'nexted' 
+                    }));
+
+                    io.clientsInRooms -= 1;
+
+                    socket.connected = false;
+                    destSock = null;
+
                 } else {
-                    console.log('ERROR: remote socket doesn\'t exist!');
-                    return;
+                    console.log('ERROR: next done but clients were not connected');
                 }
-
-                destSock.send(JSON.stringify({        // tell peer that he has been nexted
-                    type: 'nexted' 
-                }));
-
-                io.clientsInRooms -= 2;
-
-                ref.push(socket);
-
-                destSock = null;
-                isPeerAvailable(socket);
-
-                printId(ref);
 
                 break;
 
-            case 'next_ack':
+            case 'next_ack':                 // sent from the client who has been nexted
 
-                ref.push(socket);           // FIXME TODO FIXME   le next_ack a fait foirer les next, et tout le reste, à vooooooir
+                if (socket.connected) {
+                    io.clientsInRooms -= 1;
 
-                destSock = null;
+                    socket.connected = false;
+
+                    ref.push(socket);
+                    ref.push(destSock);
+
+                    destSock = null;
+
+                    isPeerAvailable(socket);
+
+                    printId(ref);
+                } else {
+                    console.log('ERROR: next_ack done but clients were not connected');
+                }
 
                 break;
 
             case 'remote_connection_closed':
+
+                socket.connected = false;
+
                 destSock = null;
                 isPeerAvailable(socket);
-
-                destSock = null;
-
 
                 break;
 
@@ -183,15 +210,20 @@ io.on('connection', function(socket) {
                 if (pos >= 0)
                     ref.splice(pos, 1);     // remove socket of disconnected client, if it exists
 
-
                 if (destSock != null) {
-                    io.clientsInRooms -= 2;
-                    ref.push(destSock);                     // add socket of his partner to the waiting list
-                    destSock.send(JSON.stringify({        // tell that peer is disconnected
-                        type: 'connection_closed' 
-                    }));
+                    if (socket.connected) {
+                        io.clientsInRooms -= 2;
+                        ref.push(destSock);                     // add socket of his partner to the waiting list
+                        destSock.send(JSON.stringify({        // tell that peer is disconnected
+                            type: 'connection_closed' 
+                        }));
+                    } else {
+                        console.log('ERRRRRORRROORRORO');
+                    }
                 }
 
+                socket.connected = false;
+                
                 printId(ref);
 
                 socket.close();
@@ -200,6 +232,11 @@ io.on('connection', function(socket) {
         }
     });
 });
+
+process.on('uncaughtException', function (err) {
+  console.log(err);
+})
+
 
 function printId(ref) {
     console.log('-------------------------');
@@ -210,7 +247,7 @@ function printId(ref) {
     var i;
     for (i = 0; i < ref.length; i++) {
         if (ref[i] != null)
-            console.log(ref[i].id);
+            console.log(ref[i].id + ' ' + ref[i].connected);
     }
 
     console.log('-------------------------');
