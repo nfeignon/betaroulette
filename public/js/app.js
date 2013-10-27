@@ -233,7 +233,7 @@ function isReady() {
 function broadcast() {
     
     // gets local video stream and renders to vid1
-    getUserMedia({audio: true, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
+    getUserMedia({audio: false, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
         localStream = s;
         pc.addStream(s);
         vid1.src = window.URL.createObjectURL(s);
