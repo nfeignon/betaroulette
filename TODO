@@ -1,6 +1,9 @@
 
 - si un client ne répond pas à la demande de mise en relation pendant un certain temps, ça serait bien de le virer
 - bouton next, actif seulement si connected=true   ---> DONNE
-- corriger le next, cf FIXME
 - ajouter le nombre de clients sur la page
-- chat
+- passer à socket.io pour le client et pour le serveur, ca devrait mieux fonctionner :)
+- corriger le bug de getUserMedia qui ne retourne pas d'erreur sur Firefox
+- virer adapter.js ou raccourcir son code
+
+- FAIRE DES TESTS, DES TESTS ET DES TESTS

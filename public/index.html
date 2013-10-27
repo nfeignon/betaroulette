@@ -7,6 +7,7 @@
         <meta name="description" content="Testing BetaRoulette">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="css/app.css">
+
         <script src="js/jquery.min.js"></script>
         <script src="js/adapter.js"></script>
         <script src="js/app.js"></script>
@@ -18,13 +19,21 @@
     <p>On essaye de créer notre propre chatroulette en HTML5. Voici la version Beta 0.1.</p>
     <p>N'hésitez pas à vous connecter de temps en temps pour tester les nouvelles fonctionnalités.</p>
     
-    <h2>NE MARCHE QUE SOUS <a href="http://www.google.com/chrome">CHROME</a> POUR L'INSTANT</h2>
-
+    <p>Le site ne marche que sur des versions récentes de <a href="http://www.google.com/chrome">Google Chrome</a> ou de <a href="http://www.mozilla.org/fr/firefox">Mozilla Firefox</a></p>
 
     <video id="vid1" autoplay="" muted=""></video>
     <video id="vid2" autoplay="" controls="" hidden></video>
 
     <input type="button" id="nextButton" value="Next!">
+
+    <form action="/" method="post" id="chat_form">
+        <input type="text" name="msg" id="msg" placeholder="Your message..." size="50" autofocus />
+        <input type="submit" id="send_msg" value="Send" />
+    </form>
+
+    <section id="chat_area">
+
+    </section>
 
     </body>
 </html>

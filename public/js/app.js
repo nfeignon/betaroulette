@@ -58,7 +58,7 @@ socket.onmessage = function(message) {
             if(!connected) {
                 pc.setRemoteDescription(new RTCSessionDescription(msg.data));
                 connected = true;
-                button.hidden = false;
+                nextButton.hidden = false;
                 socket.send(JSON.stringify({
                     type: 'connection_ok'
                 }));
@@ -68,23 +68,25 @@ socket.onmessage = function(message) {
         case 'received_candidate':
             console.log('received candidate');
             var candidate = new RTCIceCandidate({
-                sdpMLineIndex: msg.data.label,
-                candidate: msg.data.candidate
+                sdpMLineIndex: msg.label,
+                candidate: msg.candidate
             });
             pc.addIceCandidate(candidate);
             break;
 
         case 'connection_ok':
             connected = true;
-            button.hidden = false;
+            nextButton.hidden = false;
             console.log('DEBUG: connection_ok msg received');
             break;
 
         case 'nexted':
             console.log('You\'ve been nexted!');
             connected = false;
-            button.hidden = true;
+            nextButton.hidden = true;
             vid2.hidden = true;
+            $('#msg').val('').focus();
+            $('#chat_area').empty();
 
             restartPc();
 
@@ -100,12 +102,18 @@ socket.onmessage = function(message) {
 
             break;
 
+        case 'chat_msg':
+
+            addMessageToChat('Partner: ', msg.data);
+
+            break;
+
         case 'connection_closed':
             console.log('connection closed by peer');
             //alert('connection closed by peer');
             vid2.hidden = true;
             connected = false;
-            button.hidden = true;
+            nextButton.hidden = true;
 
             restartPc();
 
@@ -126,11 +134,20 @@ socket.onmessage = function(message) {
 
 
 var nbClients = 0;
-var button;
+var nextButton;
 var pc;
-var configuration = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
-var stream;
-var pc = new RTCPeerConnection(configuration);
+var pc_config = webrtcDetectedBrowser === 'firefox' ?
+  {'iceServers':[{'url':'stun:23.21.150.121'}]} :
+  {'iceServers': [{'url': 'stun:stun.l.google.com:19302'}]};
+
+var pc_constraints = {
+  'optional': [
+    {'DtlsSrtpKeyAgreement': true}                                      // this is needed for chrome / firefox interoperability
+  ]};
+
+var localStream;
+var remoteStream;
+var pc;
 var connected = false;
 var sessionReady = false;
 var mediaConstraints = {
@@ -140,37 +157,48 @@ var mediaConstraints = {
     }
 };
 
-function addListenersToPc() {
-    pc.onicecandidate = function(e) {
-        if(e.candidate) {
-            socket.send(JSON.stringify({
-                type: 'received_candidate',
-                data: {
-                    label: e.candidate.sdpMLineIndex,
-                id: e.candidate.sdpMid,
-                candidate: e.candidate.candidate
-                }
-            }));
-        }
-    };
-
-    pc.onaddstream = function(e) {
-        console.log('start remote video stream');
-        vid2.src = window.URL.createObjectURL(e.stream);
-        vid2.hidden = false;
-        vid2.play();
-    };
+function createNewPeerConnection() {
+    try {
+        pc = new RTCPeerConnection(pc_config, pc_constraints);
+        pc.onicecandidate = handleIceCandidate;
+    } catch (e) {
+        console.log('Failed to create PeerConnection, exception: ' + e.message);
+        alert('Cannot create RTCPeerConnection object.');
+        return;
+    }
+    pc.onaddstream = handleRemoteStreamAdded;
 }
-addListenersToPc();
 
+function handleIceCandidate(event) {
+    if (event.candidate) {
+        socket.send(JSON.stringify({
+            type: 'received_candidate',
+            label: event.candidate.sdpMLineIndex,
+            id: event.candidate.sdpMid,
+            candidate: event.candidate.candidate
+        }));
+    } else {
+        console.log('End of candidates.');
+    }
+}
+
+function handleRemoteStreamAdded(event) {
+    console.log('Remote stream added');
+    console.log(event);
+    remoteStream = event.stream;
+    vid2.src = window.URL.createObjectURL(event.stream);
+    vid2.hidden = false;
+    vid2.play();
+}
 
 function restartPc() {
     pc.close();
-    pc = new RTCPeerConnection(configuration);                                  // FIXME : I'm not sure it's the best way to do this... But it works!
-    pc.addStream(stream);
-    addListenersToPc();
+    createNewPeerConnection();
+    pc.addStream(localStream);
 }
 
+
+createNewPeerConnection();
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,17 +225,16 @@ function startWhenReady() {
 }
 
 function isReady() {
-    console.log('stream ' + stream);
+    console.log('localStream ' + localStream);
     console.log('session Ready ' + sessionReady);
-    return stream && sessionReady;
+    return localStream && sessionReady;
 }
 
 function broadcast() {
     
-
     // gets local video stream and renders to vid1
-    getUserMedia({audio: false, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
-        stream = s;
+    getUserMedia({audio: true, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
+        localStream = s;
         pc.addStream(s);
         vid1.src = window.URL.createObjectURL(s);
         vid1.play();
@@ -215,7 +242,7 @@ function broadcast() {
         sendReadyMsg();
 
     }, function(e) {
-        console.log('getUserMedia error: ' + e.name);
+        console.log('getUserMedia error: ' + e.name);          // FIXME: ERROR NOT FIRED WHEN WEBCAM IS UNAVAILABLE WITH FIREFOX
         alert('Error: ' + e.name);
         socket.send(JSON.stringify({
             type: 'close'
@@ -235,7 +262,7 @@ function start() {
         }));
     }, 
     function(err) {
-        console.log('Error ' + err);
+        console.error(err);
     },
     mediaConstraints);
 }
@@ -248,8 +275,10 @@ function next() {
 
     console.log('Nexting this peer');
     connected = false;
-    button.hidden = true;
+    nextButton.hidden = true;
     vid2.hidden = true;
+    $('#msg').val('').focus();
+    $('#chat_area').empty();
 
     socket.send(JSON.stringify({
         type: 'next'
@@ -258,15 +287,34 @@ function next() {
     restartPc();
 }
 
+function addMessageToChat(name, msg) {
+    $('#chat_area').prepend('<p><strong>' + name + '</strong> ' + msg + '</p>');
+}
+
 window.onload = function() {
 
-    button = document.getElementById("nextButton");
-    button.hidden = true;
+    $('#chat_form').submit(function () {            // FIXME it looks ugly 
+        var message = $('#msg').val();
 
-    if(button.addEventListener){
-        button.addEventListener("click", function() { next();});
+        socket.send(JSON.stringify({
+            type: 'chat_msg',
+            data: message
+        }));
+
+        addMessageToChat('You: ', message);
+        $('#msg').val('').focus();
+
+        return false;           // so that we don't reload the page
+    });
+
+
+    nextButton = document.getElementById("nextButton");
+    nextButton.hidden = true;
+
+    if(nextButton.addEventListener){
+        nextButton.addEventListener("click", function() { next();});
     } else {
-        button.attachEvent("click", function() { next();});
+        nextButton.attachEvent("click", function() { next();});
     };
 
     broadcast();

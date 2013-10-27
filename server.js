@@ -4,11 +4,12 @@ var express = require('express');
 var app = express();
 var ws = require('websocket.io');
 var uuid = require('node-uuid');
+var ent = require('ent');
 
 app.use(express["static"]('./public'));
 
 app.get('/', function(req, res) {
-    res.sendfile(__dirname + '/index.html/');
+    res.sendfile(__dirname + '/index.html');
 });
 
 var server = app.listen(3002);
@@ -25,7 +26,7 @@ function isPeerAvailable(sock) {
             type: 'peer_available'
         }));
     } else {
-        console.log('ERROR in isPeerAvailable: ' + io.clientsWaiting.length + ' in wait queue');
+        console.log('isPeerAvailable(): ' + io.clientsWaiting.length + ' in wait queue, aborting...');
     }
 }
 
@@ -193,6 +194,25 @@ io.on('connection', function(socket) {
 
                 break;
 
+            case 'chat_msg':
+
+                if (socket.connected) {
+                    if (destSock != null) {
+                        escaped_msg = ent.encode(msg.data);                     // protection from XSS flaws
+                        destSock.send(JSON.stringify({
+                                type: 'chat_msg',
+                                data: escaped_msg
+                        }));
+                        console.log('Forwarded message: ' + msg.data);
+                    } else {
+                        console.log('Error while forwarding chat message, destSock is null');
+                    }
+                } else {
+                    console.log('Error while forwarding chat message, socket not connected');
+                }
+
+                break;
+
             case 'remote_connection_closed':
 
                 socket.connected = false;
@@ -218,8 +238,10 @@ io.on('connection', function(socket) {
                             type: 'connection_closed' 
                         }));
                     } else {
-                        console.log('ERRRRRORRROORRORO');
+                        console.log('Error: close message, destSock not null but socket not connected');
                     }
+
+                    destSock = null;
                 }
 
                 socket.connected = false;
