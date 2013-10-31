@@ -3,6 +3,6 @@
 - ajouter le nombre de clients sur la page
 - passer à socket.io pour le client et pour le serveur, ca devrait mieux fonctionner :)     (vraiment utile ?)
 - corriger le bug de getUserMedia qui ne retourne pas d'erreur sur Firefox
-- virer adapter.js ou raccourcir son code
 
 - FAIRE DES TESTS, DES TESTS ET DES TESTS
+

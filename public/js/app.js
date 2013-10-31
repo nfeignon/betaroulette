@@ -33,7 +33,7 @@ socket.onmessage = function(message) {
 
         case 'peer_available':
             console.log('Peer is available, now trying to connect to him with RTCPeerConnection');
-            startWhenReady();
+            start();
             break;
 
         case 'received_offer': 
@@ -96,12 +96,6 @@ socket.onmessage = function(message) {
 
             break;
 
-        case 'nb_clients':
-           
-            nbClients = msg.data;
-
-            break;
-
         case 'chat_msg':
 
             addMessageToChat('Partner: ', msg.data);
@@ -133,7 +127,6 @@ socket.onmessage = function(message) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-var nbClients = 0;
 var nextButton;
 var pc;
 var pc_config = webrtcDetectedBrowser === 'firefox' ?
@@ -207,6 +200,7 @@ createNewPeerConnection();
 
 function sendReadyMsg() {
     if (isReady()) {
+        console.log('Sent session ready');
         socket.send(JSON.stringify({
             type: 'client_ready'
         }));
@@ -215,25 +209,16 @@ function sendReadyMsg() {
         setTimeout('sendReadyMsg()', 1000);
 }
 
-function startWhenReady() {
-
-    if (isReady()) 
-        start();
-    else 
-        setTimeout('startWhenReady()', 500);
-    
-}
-
 function isReady() {
-    console.log('localStream ' + localStream);
-    console.log('session Ready ' + sessionReady);
-    return localStream && sessionReady;
+    //console.log('localStream ' + localStream);
+    //console.log('session Ready ' + sessionReady);
+    return localStream && sessionReady && socket.id;
 }
 
 function broadcast() {
     
     // gets local video stream and renders to vid1
-    getUserMedia({audio: false, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
+    getUserMedia({audio: true, video: true}, function(s) {    // we continue on this function when the user has accepted the webcam
         localStream = s;
         pc.addStream(s);
         vid1.src = window.URL.createObjectURL(s);

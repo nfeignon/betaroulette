@@ -30,14 +30,6 @@ function isPeerAvailable(sock) {
     }
 }
 
-function sendNbOfClients(sock, nb) {
-    sock.send(JSON.stringify({
-        type: 'nb_clients',
-        data: nb
-    }));
-}
-
-
 io.on('connection', function(socket) {
     console.log('------------------------------------------------');
     console.log('Client connected from ' + socket.req.connection.remoteAddress);
@@ -56,9 +48,8 @@ io.on('connection', function(socket) {
         id: socket.id
     }));
 
-    sendNbOfClients(socket, io.clientsInRooms);
-
-    console.log('new client connected :  clientsWaiting size = ' + io.clientsWaiting.length);
+    console.log('new client connected!');
+    printId();
 
     var destSock;
 
@@ -77,28 +68,43 @@ io.on('connection', function(socket) {
 
                 var messageSent = false;
 
-                if (ref.length > 1) {
+                if (socket.isReady) {
 
-                    // if we don't have a destination socket
-                    if (destSock == null) {
-                        for (i = 0; i < ref.length; i++) {
-                            if (ref[i].id !== socket.id) {
-                                destSock = ref[i];
-                                break;
+                    if (ref.length > 1) {
+
+                        // if we don't have a destination socket
+                        //
+                        if (destSock == null) {
+                            for (i = 0; i < ref.length; i++) {
+                                if (ref[i].id !== socket.id) {
+                                    destSock = ref[i];
+                                    break;
+                                }
                             }
+                            if (destSock == null)           // if we didn't found a partner to chat with, it should not happen
+                                console.log('partner not found, error !!!');
                         }
-                        if (destSock == null)           // if we didn't found a partner to chat with, it should not happen
-                            console.log('partner not found, error !!!');
+
+                    } else {
+                        if (destSock == null) {
+                            console.log('ERROR: received answer but no one is available for chat');
+                            console.log('and remote socket doesn\'t exist...');
+                        }
                     }
+
+
+                    if (destSock != null) {
+                        //console.log('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + destSock.id);
+                        destSock.send(JSON.stringify(msg));
+                    } else {
+                        console.log('ERROR: remote socket doesn\'t exist, message ' + msg.type + ' could not be relayed');
+                    }
+
+
                 } else {
-                    if (destSock == null)
-                        console.log('No one to chat with !');
+                    console.log('ERROR: received ' + msg.type + ' but client was not ready!'); 
                 }
 
-                if (destSock != null) {
-                    //console.log('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + destSock.id);
-                    destSock.send(JSON.stringify(msg));
-                }
 
                 break;
 
@@ -106,6 +112,9 @@ io.on('connection', function(socket) {
 
                 socket.isReady = true;
                 io.clientsWaiting.push(socket);
+
+                printId();
+
                 isPeerAvailable(socket);              // send msg of type 'peer_available' if someone is available to chat
 
                 break;
@@ -135,7 +144,7 @@ io.on('connection', function(socket) {
                 destSock.connected = true;
 
                 console.log('CONNECTION OK, now ' + ref.length + ' clients waiting, ' + io.clientsInRooms + ' clients in communication.');
-                printId(ref);
+                printId();
                 break;
 
             case 'next':
@@ -187,7 +196,7 @@ io.on('connection', function(socket) {
 
                     isPeerAvailable(socket);
 
-                    printId(ref);
+                    printId();
                 } else {
                     console.log('ERROR: next_ack done but clients were not connected');
                 }
@@ -246,7 +255,7 @@ io.on('connection', function(socket) {
 
                 socket.connected = false;
                 
-                printId(ref);
+                printId();
 
                 socket.close();
 
@@ -260,10 +269,13 @@ process.on('uncaughtException', function (err) {
 })
 
 
-function printId(ref) {
+function printId() {
+
+    ref = io.clientsWaiting;
+
     console.log('-------------------------');
     console.log(io.clientsInRooms + ' clients in communication!');
-    console.log(io.clientsWaiting.length + ' clients waiting!');
+    console.log(ref.length + ' clients waiting!');
     console.log('Printing socket ID of all sockets in the waiting list');
 
     var i;
