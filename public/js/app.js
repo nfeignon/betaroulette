@@ -77,7 +77,6 @@ socket.onmessage = function(message) {
         case 'connection_ok':
             connected = true;
             nextButton.hidden = false;
-            console.log('DEBUG: connection_ok msg received');
             break;
 
         case 'nexted':
@@ -104,7 +103,6 @@ socket.onmessage = function(message) {
 
         case 'connection_closed':
             console.log('connection closed by peer');
-            //alert('connection closed by peer');
             vid2.hidden = true;
             connected = false;
             nextButton.hidden = true;
@@ -204,6 +202,8 @@ function sendReadyMsg() {
         socket.send(JSON.stringify({
             type: 'client_ready'
         }));
+
+        setTimeout('sendKeepAlive()', 4000);            // we can start to send keep alive packets
     }
     else
         setTimeout('sendReadyMsg()', 1000);
@@ -214,6 +214,17 @@ function isReady() {
     //console.log('session Ready ' + sessionReady);
     return localStream && sessionReady && socket.id;
 }
+
+function sendKeepAlive() {
+    socket.send(JSON.stringify({
+        type: 'keep_alive'
+    }));
+
+    console.log('Sending keep-alive packet...');
+
+    setTimeout('sendKeepAlive()', 4000);
+}
+
 
 function broadcast() {
     
