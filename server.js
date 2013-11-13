@@ -12,8 +12,13 @@ app.get('/', function(req, res) {
     res.sendfile(__dirname + '/index.html');
 });
 
-var server = app.listen(3002);
+var port = 3002;
+
+var server = app.listen(port);
 var io = ws.attach(server);
+
+
+console.log('Server listening on port ' + port);
 
 
 io.clientsWaiting || (io.clientsWaiting = []);
@@ -65,8 +70,6 @@ io.on('connection', function(socket) {
             case 'received_offer':
             case 'received_candidate':
             case 'received_answer':
-
-                var messageSent = false;
 
                 if (socket.isReady) {
 
@@ -265,7 +268,12 @@ io.on('connection', function(socket) {
 });
 
 process.on('uncaughtException', function (err) {
-  console.log(err);
+    console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
+    console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
+    console.log('UNCAUGHT EXCEPTION');
+    console.log(err);
+    console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
+    console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
 })
 
 
