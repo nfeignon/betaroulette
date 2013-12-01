@@ -1,34 +1,29 @@
 
-
-var express = require('express');
-var app = express();
-var ws = require('websocket.io');
-var uuid = require('node-uuid');
-var ent = require('ent');
-
-app.use(express["static"]('./public'));
-
-app.get('/', function(req, res) {
-    res.sendfile(__dirname + '/index.html');
-});
-
-var port = 3002;
-
-var server = app.listen(port);
-var io = ws.attach(server);
-
+var uuid = require('node-uuid')
+, ent = require('ent')
+, WebSocketServer = require('ws').Server
+, http = require('http')
+, express = require('express')
+, app = express()
+, port = process.env.PORT || 3002;
+ 
+app.use(express.static(__dirname + '/public'));
+ 
+var server = http.createServer(app);
+server.listen(port);
+ 
+var wss = new WebSocketServer({server: server});
 
 console.log('Server listening on port ' + port);
 
+wss.clientsWaiting || (wss.clientsWaiting = []);
+wss.clientsInRooms || (wss.clientsInRooms = 0);
 
-io.clientsWaiting || (io.clientsWaiting = []);
-io.clientsInRooms || (io.clientsInRooms = 0);
 
-
-io.on('connection', function(socket) {
+wss.on('connection', function(socket) {
     console.log('------------------------------------------------');
-    console.log('Client connected from ' + socket.req.connection.remoteAddress);
-    console.log('User Agent: ' + socket.req.headers['user-agent'] + '\n');
+    //console.log('Client connected from ' + socket.req.connection.remoteAddress);
+    //console.log('User Agent: ' + socket.req.headers['user-agent'] + '\n');
 
     var base;
 
@@ -50,13 +45,13 @@ io.on('connection', function(socket) {
     console.log('new client connected!');
     printId();
 
-    return socket.on('message', function(data) {
+    socket.on('message', function(data) {
         var msg, sock, i, ref;
         msg = JSON.parse(data);
 
         console.log('Received msg of type ' + msg.type + ' from ' + socket.id);
 
-        ref = io.clientsWaiting;
+        ref = wss.clientsWaiting;
 
         switch (msg.type) {
             case 'received_offer':
@@ -110,7 +105,7 @@ io.on('connection', function(socket) {
                 socket.lastKeepAlive = new Date().getTime();
                 checkKeepAlive(socket);
 
-                io.clientsWaiting.push(socket);
+                wss.clientsWaiting.push(socket);
 
                 printId();
 
@@ -137,12 +132,12 @@ io.on('connection', function(socket) {
                 for (i = 0; i < toDelete.length; i++)
                     ref.splice(ref.indexOf(toDelete[i]), 1);
 
-                io.clientsInRooms += 2;
+                wss.clientsInRooms += 2;
 
                 socket.connected = true;
                 socket.destSock.connected = true;
 
-                console.log('CONNECTION OK, now ' + ref.length + ' clients waiting, ' + io.clientsInRooms + ' clients in communication.');
+                console.log('CONNECTION OK, now ' + ref.length + ' clients waiting, ' + wss.clientsInRooms + ' clients in communication.');
                 printId();
                 break;
 
@@ -170,7 +165,7 @@ io.on('connection', function(socket) {
                         type: 'nexted'
                     }));
 
-                    io.clientsInRooms -= 1;
+                    wss.clientsInRooms -= 1;
 
                     socket.connected = false;
                     socket.destSock = null;
@@ -184,7 +179,7 @@ io.on('connection', function(socket) {
             case 'next_ack':                 // sent from the client who has been nexted
 
                 if (socket.connected) {
-                    io.clientsInRooms -= 1;
+                    wss.clientsInRooms -= 1;
 
                     socket.connected = false;
 
@@ -248,7 +243,7 @@ io.on('connection', function(socket) {
 
                 if (socket.destSock != null) {
                     if (socket.connected) {
-                        io.clientsInRooms -= 2;
+                        wss.clientsInRooms -= 2;
                         ref.push(socket.destSock);                     // add socket of his partner to the waiting list
                         socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
                             type: 'connection_closed'
@@ -282,12 +277,12 @@ io.on('connection', function(socket) {
 
 
 function isPeerAvailable(sock) {
-    if (io.clientsWaiting.length > 1) {
+    if (wss.clientsWaiting.length > 1) {
         sock.send(JSON.stringify({
             type: 'peer_available'
         }));
     } else {
-        console.log('isPeerAvailable(): ' + io.clientsWaiting.length + ' in wait queue, aborting...');
+        console.log('isPeerAvailable(): ' + wss.clientsWaiting.length + ' in wait queue, aborting...');
     }
 }
 
@@ -299,7 +294,7 @@ function checkKeepAlive(socket) {                 // FIXME : est ce qu'on recoit
         if (timeDifference > 6000) {     // 6 seconds
             console.log('Client with ID ' + socket.id + ' didn\'t send keep_alive packet for ' + timeDifference + ' ms.\nDisconnecting him...');
 
-            ref = io.clientsWaiting;
+            ref = wss.clientsWaiting;
 
             socket.keepAlive = false;
 
@@ -309,7 +304,7 @@ function checkKeepAlive(socket) {                 // FIXME : est ce qu'on recoit
 
             if (socket.destSock != null) {
                 if (socket.connected) {
-                    io.clientsInRooms -= 2;
+                    wss.clientsInRooms -= 2;
                     ref.push(socket.destSock);                     // add socket of his partner to the waiting list
                     socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
                         type: 'connection_closed'
@@ -335,10 +330,10 @@ function checkKeepAlive(socket) {                 // FIXME : est ce qu'on recoit
 
 function printId() {
 
-    ref = io.clientsWaiting;
+    ref = wss.clientsWaiting;
 
     console.log('-------------------------');
-    console.log(io.clientsInRooms + ' clients in communication!');
+    console.log(wss.clientsInRooms + ' clients in communication!');
     console.log(ref.length + ' clients waiting!');
     console.log('Printing socket ID of all sockets in the waiting list');
 
