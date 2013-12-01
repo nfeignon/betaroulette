@@ -20,6 +20,7 @@ socket.onopen = function() {
 
 socket.onclose = function() {
     console.log('ERROR: connection error');
+    alert('ERROR: disconnected from server');
 }
 
 socket.onmessage = function(message) {
@@ -154,7 +155,7 @@ function createNewPeerConnection() {
         pc.onicecandidate = handleIceCandidate;
     } catch (e) {
         console.log('Failed to create PeerConnection, exception: ' + e.message);
-        alert('Cannot create RTCPeerConnection object.');
+        // alert('Cannot create RTCPeerConnection object.');
         return;
     }
     pc.onaddstream = handleRemoteStreamAdded;

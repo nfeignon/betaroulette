@@ -296,8 +296,6 @@ function checkKeepAlive(socket) {                 // FIXME : est ce qu'on recoit
     if (socket.keepAlive) {
         timeDifference = new Date().getTime() - socket.lastKeepAlive;
 
-        console.log(socket.connected);
-
         if (timeDifference > 6000) {     // 6 seconds
             console.log('Client with ID ' + socket.id + ' didn\'t send keep_alive packet for ' + timeDifference + ' ms.\nDisconnecting him...');
 
