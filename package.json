@@ -1,5 +1,5 @@
 {
-  "name": "Vid",
+  "name": "BetaRoulette",
   "version": "0.0.0",
   "description": "ERROR: No README.md file found!",
   "main": "index.js",
@@ -13,6 +13,7 @@
     "express": "3",
     "ws": "0.4.x",
     "node-uuid": "*",
-    "ent": "*"
+    "ent": "*",
+    "geoip-lite": "*"
   }
 }

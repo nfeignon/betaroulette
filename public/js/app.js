@@ -80,6 +80,10 @@ socket.onmessage = function(message) {
             nextButton.hidden = false;
             break;
 
+        case 'partner_location':
+            addMessageToChat('Partner',  'is from ' + msg.data);
+            break;
+
         case 'nexted':
             console.log('You\'ve been nexted!');
             connected = false;

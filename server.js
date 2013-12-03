@@ -1,6 +1,7 @@
 
 var uuid = require('node-uuid')
 , ent = require('ent')
+, geoip = require('geoip-lite')
 , WebSocketServer = require('ws').Server
 , http = require('http')
 , express = require('express')
@@ -22,7 +23,15 @@ wss.clientsInRooms || (wss.clientsInRooms = 0);
 
 wss.on('connection', function(socket) {
     console.log('------------------------------------------------');
-    console.log('Client connected from ' + socket.upgradeReq.headers.host);
+    var ip = socket.upgradeReq.connection.remoteAddress;
+    var location = geoip.lookup(ip);
+
+    if (location)
+        socket.location = location['city'] + ', ' + location['country'];
+    else
+        socket.location = 'unknown';
+
+    console.log('Client "' + ip + '" connected from "' + socket.location + '"');
     console.log('User Agent: ' + socket.upgradeReq.headers['user-agent'] + '\n');
 
     var base;
@@ -138,6 +147,16 @@ wss.on('connection', function(socket) {
 
                 socket.connected = true;
                 socket.destSock.connected = true;
+
+                socket.send(JSON.stringify({
+                    'type': 'partner_location',
+                    data: socket.destSock.location
+                }));
+
+                socket.destSock.send(JSON.stringify({
+                    'type': 'partner_location',
+                    data: socket.location
+                }));
 
                 console.log('CONNECTION OK, now ' + ref.length + ' clients waiting, ' + wss.clientsInRooms + ' clients in communication.');
                 printId();
@@ -296,7 +315,7 @@ function isPeerAvailable(sock) {
 }
 
 // TODO un intervalle serait peut etre mieux cf setInterval
-function checkKeepAlive(socket) {                 // FIXME : est ce qu'on recoit est bien la version correcte de socket.destSock et socket ou c'est tout du caca ???
+function checkKeepAlive(socket) {
     if (socket.keepAlive) {
         timeDifference = new Date().getTime() - socket.lastKeepAlive;
 
