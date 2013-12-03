@@ -22,8 +22,8 @@ wss.clientsInRooms || (wss.clientsInRooms = 0);
 
 wss.on('connection', function(socket) {
     console.log('------------------------------------------------');
-    //console.log('Client connected from ' + socket.req.connection.remoteAddress);
-    //console.log('User Agent: ' + socket.req.headers['user-agent'] + '\n');
+    console.log('Client connected from ' + socket.upgradeReq.headers.host);
+    console.log('User Agent: ' + socket.upgradeReq.headers['user-agent'] + '\n');
 
     var base;
 
@@ -85,7 +85,9 @@ wss.on('connection', function(socket) {
 
                     if (socket.destSock != null) {
                         //console.log('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + socket.destSock.id);
-                        socket.destSock.send(JSON.stringify(msg));
+                        try {
+                            socket.destSock.send(JSON.stringify(msg));
+                        } catch (err) {}
                     } else {
                         console.log('ERROR: remote socket doesn\'t exist, message ' + msg.type + ' could not be relayed');
                     }
@@ -223,9 +225,14 @@ wss.on('connection', function(socket) {
 
             case 'remote_connection_closed':
 
-                socket.connected = false;
+                ref.push(socket);                       // add socket to the waiting list
+                wss.clientsInRooms -= 1;
 
+                socket.connected = false;
                 socket.destSock = null;
+
+                printId();
+
                 isPeerAvailable(socket);
 
                 break;
@@ -243,11 +250,12 @@ wss.on('connection', function(socket) {
 
                 if (socket.destSock != null) {
                     if (socket.connected) {
-                        wss.clientsInRooms -= 2;
-                        ref.push(socket.destSock);                     // add socket of his partner to the waiting list
-                        socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
-                            type: 'connection_closed'
-                        }));
+                        wss.clientsInRooms -= 1;
+                        try {
+                            socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
+                                type: 'connection_closed'
+                            }));
+                        } catch (err) {}
                     } else {
                         console.log('Error: close message, socket.destSock not null but socket not connected');
                     }
@@ -255,9 +263,10 @@ wss.on('connection', function(socket) {
                     socket.destSock = null;
                 }
 
-                socket.connected = false;
-
-                printId();
+                if (!socket.connected) {
+                    socket.connected = false;
+                    printId();
+                }
 
                 socket.close();
 
@@ -302,26 +311,28 @@ function checkKeepAlive(socket) {                 // FIXME : est ce qu'on recoit
             if (pos >= 0)
                 ref.splice(pos, 1);     // remove socket of disconnected client, if it exists
 
+
             if (socket.destSock != null) {
                 if (socket.connected) {
-                    wss.clientsInRooms -= 2;
-                    ref.push(socket.destSock);                     // add socket of his partner to the waiting list
-                    socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
-                        type: 'connection_closed'
-                    }));
+                    wss.clientsInRooms -= 1;
+                    try {
+                        socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
+                            type: 'connection_closed'
+                        }));
+                    } catch (err) {}
                 } else {
-                    console.log('Error: keep alive closing, socket.destSock not null but socket not connected');
+                    console.log('Error: close message, socket.destSock not null but socket not connected');
                 }
 
                 socket.destSock = null;
             }
 
-            socket.connected = false;
-
-            printId();
+            if (!socket.connected) {
+                socket.connected = false;
+                printId();
+            }
 
             socket.close();
-
         }
 
         setTimeout(function () {checkKeepAlive(socket)}, 3000);
