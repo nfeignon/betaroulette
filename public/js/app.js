@@ -101,9 +101,7 @@ socket.onmessage = function(message) {
             break;
 
         case 'chat_msg':
-
             addMessageToChat('Partner: ', msg.data);
-
             break;
 
         case 'connection_closed':
@@ -111,6 +109,8 @@ socket.onmessage = function(message) {
             vid2.hidden = true;
             connected = false;
             nextButton.hidden = true;
+            $('#msg').val('').focus();
+            $('#chat_area').empty();
 
             restartPc();
 
@@ -215,8 +215,6 @@ function sendReadyMsg() {
 }
 
 function isReady() {
-    //console.log('localStream ' + localStream);
-    //console.log('session Ready ' + sessionReady);
     return localStream && sessionReady && socket.id;
 }
 
@@ -289,6 +287,8 @@ function next() {
 }
 
 function addMessageToChat(name, msg) {
+    // the message should be already escaped by the server
+    msg = replaceURLWithHTMLLinks(msg);
     $('#chat_area').prepend('<p><strong>' + name + '</strong> ' + msg + '</p>');
 }
 
@@ -329,4 +329,13 @@ window.onbeforeunload = function() {
     pc = null;
 };
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+function replaceURLWithHTMLLinks(text) {            // TODO ne marche pas avec les trucs escapes
+    var exp = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+    return text.replace(exp,"<a href='$1'>$1</a>");
+}
 
