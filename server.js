@@ -2,6 +2,7 @@
 var uuid = require('node-uuid')
 , ent = require('ent')
 , geoip = require('geoip-lite')
+, winston = require('winston')
 , WebSocketServer = require('ws').Server
 , http = require('http')
 , express = require('express')
@@ -9,16 +10,24 @@ var uuid = require('node-uuid')
 , port = process.env.PORT || 3002;
  
 app.use(express.static(__dirname + '/public'));
+
+var logger = new (winston.Logger)({
+    transports: [
+        new (winston.transports.Console)({'timestamp':function() {return new Date().getHours() + ':' + new Date().getMinutes(); }, 'colorize':true, 'level':'info'}),
+        new (winston.transports.File)({ filename: 'log', 'timestamp':true, 'level':'verbose'})
+    ]
+});
  
 var server = http.createServer(app);
 server.listen(port);
  
 var wss = new WebSocketServer({server: server});
 
-console.log('Server listening on port ' + port);
+logger.info('Server listening on port ' + port);
 
 wss.clientsWaiting || (wss.clientsWaiting = []);
 wss.clientsInRooms || (wss.clientsInRooms = 0);
+
 
 
 wss.on('connection', function(socket) {
@@ -31,13 +40,13 @@ wss.on('connection', function(socket) {
     else
         socket.location = 'unknown';
 
-    console.log('Client "' + ip + '" connected from "' + socket.location + '"');
-    console.log('User Agent: ' + socket.upgradeReq.headers['user-agent'] + '\n');
+    logger.info('Client "' + ip + '" ' + 'connected'.green +  ' from "' + socket.location + '"');
+    logger.info('User Agent: ' + socket.upgradeReq.headers['user-agent'] + '\n');
 
     var base;
 
     socket.id = uuid.v1();
-    console.log('attributed id = ' + socket.id);
+    logger.info('attributed id: ' + socket.id);
 
     socket.connected = false;
     socket.isReady = false;
@@ -51,14 +60,13 @@ wss.on('connection', function(socket) {
         id: socket.id
     }));
 
-    console.log('new client connected!');
     printId();
 
     socket.on('message', function(data) {
         var msg, sock, i, ref;
         msg = JSON.parse(data);
 
-        console.log('Received msg of type ' + msg.type + ' from ' + socket.id);
+        logger.verbose('Received msg of type ' + msg.type + ' from ' + socket.id);
 
         ref = wss.clientsWaiting;
 
@@ -81,29 +89,28 @@ wss.on('connection', function(socket) {
                                 }
                             }
                             if (socket.destSock == null)           // if we didn't found a partner to chat with, it should not happen
-                                console.log('partner not found, error !!!');
+                                logger.error('partner not found, error !!!');
                         }
 
                     } else {
                         if (socket.destSock == null) {
-                            console.log('ERROR: received answer but no one is available for chat');
-                            console.log('and remote socket doesn\'t exist...');
+                            logger.error('ERROR: received answer but no one is available for chat\nand remote socket doesn\'t exist...');
                         }
                     }
 
 
                     if (socket.destSock != null) {
-                        //console.log('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + socket.destSock.id);
+                        logger.silly('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + socket.destSock.id);
                         try {
                             socket.destSock.send(JSON.stringify(msg));
                         } catch (err) {}
                     } else {
-                        console.log('ERROR: remote socket doesn\'t exist, message ' + msg.type + ' could not be relayed');
+                        logger.error('ERROR: remote socket doesn\'t exist, message ' + msg.type + ' could not be relayed');
                     }
 
 
                 } else {
-                    console.log('ERROR: received ' + msg.type + ' but client was not ready!');
+                    logger.error('ERROR: received ' + msg.type + ' but client was not ready!');
                 }
 
 
@@ -127,7 +134,7 @@ wss.on('connection', function(socket) {
             case 'connection_ok':
 
                 if (socket.destSock == null) {
-                    console.log('ERROR: remote socket doesn\'t exist!');
+                    logger.error('ERROR: remote socket doesn\'t exist!');
                     return;
                 }
 
@@ -158,7 +165,7 @@ wss.on('connection', function(socket) {
                     data: socket.location
                 }));
 
-                console.log('CONNECTION OK, now ' + ref.length + ' clients waiting, ' + wss.clientsInRooms + ' clients in communication.');
+                logger.info('CONNECTION OK'.green.bold);
                 printId();
                 break;
 
@@ -167,18 +174,18 @@ wss.on('connection', function(socket) {
 
                     var pos = ref.indexOf(socket);
                     if (pos >= 0) {
-                        console.log('ERROR: client\'s socket should not be in the waiting list');             // sanity check
+                        logger.error('ERROR: client\'s socket should not be in the waiting list');             // sanity check
                         return;
                     }
 
                     if (socket.destSock != null) {
                         var pos = ref.indexOf(socket.destSock);
                         if (pos >= 0) {
-                            console.log('ERROR: remote socket should not be in the waiting list');
+                            logger.error('ERROR: remote socket should not be in the waiting list');
                             return;
                         }
                     } else {
-                        console.log('ERROR: remote socket doesn\'t exist!');
+                        logger.error('ERROR: remote socket doesn\'t exist!');
                         return;
                     }
 
@@ -192,7 +199,7 @@ wss.on('connection', function(socket) {
                     socket.destSock = null;
 
                 } else {
-                    console.log('ERROR: next done but clients were not connected');
+                    logger.error('ERROR: next done but clients were not connected');
                 }
 
                 break;
@@ -213,7 +220,7 @@ wss.on('connection', function(socket) {
 
                     printId();
                 } else {
-                    console.log('ERROR: next_ack done but clients were not connected');
+                    logger.error('ERROR: next_ack done but clients were not connected');
                 }
 
                 break;
@@ -227,12 +234,12 @@ wss.on('connection', function(socket) {
                                 type: 'chat_msg',
                                 data: escaped_msg
                         }));
-                        console.log('Forwarded message: ' + msg.data);
+                        logger.info('Forwarded message: ' + msg.data);
                     } else {
-                        console.log('Error while forwarding chat message, socket.destSock is null');
+                        logger.error('Error while forwarding chat message, socket.destSock is null');
                     }
                 } else {
-                    console.log('Error while forwarding chat message, socket not connected');
+                    logger.error('Error while forwarding chat message, socket not connected');
                 }
 
                 break;
@@ -258,7 +265,7 @@ wss.on('connection', function(socket) {
 
             case 'close':
 
-                console.log('Client deconnecté ! id: ' + socket.id);
+                logger.info('Client ' + 'disconnected'.red + '! id: ' + socket.id);
 
                 socket.keepAlive = false;
 
@@ -276,7 +283,7 @@ wss.on('connection', function(socket) {
                             }));
                         } catch (err) {}
                     } else {
-                        console.log('Error: close message, socket.destSock not null but socket not connected');
+                        logger.error('Error: close message, socket.destSock not null but socket not connected');
                     }
 
                     socket.destSock = null;
@@ -310,7 +317,7 @@ function isPeerAvailable(sock) {
             type: 'peer_available'
         }));
     } else {
-        console.log('isPeerAvailable(): ' + wss.clientsWaiting.length + ' in wait queue, aborting...');
+        logger.info('isPeerAvailable(): ' + wss.clientsWaiting.length + ' in wait queue, aborting...');
     }
 }
 
@@ -320,7 +327,8 @@ function checkKeepAlive(socket) {
         timeDifference = new Date().getTime() - socket.lastKeepAlive;
 
         if (timeDifference > 6000) {     // 6 seconds
-            console.log('Client with ID ' + socket.id + ' didn\'t send keep_alive packet for ' + timeDifference + ' ms.\nDisconnecting him...');
+            logger.warn('Client with ID ' + socket.id + ' didn\'t send keep_alive packet for ' + timeDifference + ' ms.');
+            logger.info('Client ' + 'disconnected'.red + '! id: ' + socket.id);
 
             ref = wss.clientsWaiting;
 
@@ -340,7 +348,7 @@ function checkKeepAlive(socket) {
                         }));
                     } catch (err) {}
                 } else {
-                    console.log('Error: close message, socket.destSock not null but socket not connected');
+                    logger.error('Error: close message, socket.destSock not null but socket not connected');
                 }
 
                 socket.destSock = null;
@@ -362,18 +370,18 @@ function printId() {
 
     ref = wss.clientsWaiting;
 
-    console.log('-------------------------');
-    console.log(wss.clientsInRooms + ' clients in communication!');
-    console.log(ref.length + ' clients waiting!');
-    console.log('Printing socket ID of all sockets in the waiting list');
+    console.log('------------------------------------------------');
+    logger.info(wss.clientsInRooms + ' clients in communication!');
+    logger.info(ref.length + ' clients waiting!');
+    logger.info('Printing socket ID of all sockets in the waiting list');
 
     var i;
     for (i = 0; i < ref.length; i++) {
         if (ref[i] != null)
-            console.log(ref[i].id + ' ' + ref[i].connected);
+            logger.info(ref[i].id + ' ' + ref[i].connected);
     }
 
-    console.log('-------------------------');
+    console.log('------------------------------------------------');
 
 }
 
