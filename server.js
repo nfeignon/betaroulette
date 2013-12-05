@@ -118,7 +118,7 @@ wss.on('connection', function(socket) {
 
             case 'client_ready':
 
-                logger.info('Client with id:' + socket.id + ' ready!');
+                logger.info('Client with id ' + socket.id + ' ready!');
                 socket.isReady = true;
                 socket.keepAlive = true;
                 socket.lastKeepAlive = new Date().getTime();
