@@ -118,6 +118,7 @@ wss.on('connection', function(socket) {
 
             case 'client_ready':
 
+                logger.info('Client with id:' + socket.id + ' ready!');
                 socket.isReady = true;
                 socket.keepAlive = true;
                 socket.lastKeepAlive = new Date().getTime();
@@ -239,7 +240,7 @@ wss.on('connection', function(socket) {
                         logger.error('Error while forwarding chat message, socket.destSock is null');
                     }
                 } else {
-                    logger.error('Error while forwarding chat message, socket not connected');
+                    logger.error('Error while forwarding chat message, socket not connected, message: ' + msg.data);
                 }
 
                 break;
