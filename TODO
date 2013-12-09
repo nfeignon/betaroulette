@@ -1,3 +1,5 @@
 - fix geolocalisation problem
 - Communication android / android, is there a problem ?
+- make sure connected = true on client side is GOOD
+- Design !
 - tests!
