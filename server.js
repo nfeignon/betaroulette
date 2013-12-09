@@ -302,16 +302,6 @@ wss.on('connection', function(socket) {
     });
 });
 
-//process.on('uncaughtException', function (err) {
-  //  console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
-  //  console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
-  //  console.log('UNCAUGHT EXCEPTION');
-  //  console.log(err);
-  //  console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
-  //  console.log('/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*/*');
-//})
-
-
 function isPeerAvailable(sock) {
     if (wss.clientsWaiting.length > 1) {
         sock.send(JSON.stringify({
@@ -364,6 +354,8 @@ function checkKeepAlive(socket) {
         }
 
         setTimeout(function () {checkKeepAlive(socket)}, 3000);
+    } else {
+        logger.err('No more keepalive');
     }
 }
 
