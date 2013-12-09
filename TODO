@@ -1,5 +1,6 @@
 - fix geolocalisation problem
 - Communication android / android, is there a problem ?
 - make sure connected = true on client side is GOOD
+- Erreur quand on ferme la fenetre pendant que la connexion est en train de se faire...
 - Design !
 - tests!

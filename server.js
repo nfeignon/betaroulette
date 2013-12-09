@@ -355,7 +355,7 @@ function checkKeepAlive(socket) {
 
         setTimeout(function () {checkKeepAlive(socket)}, 3000);
     } else {
-        logger.err('No more keepalive');
+        logger.verbose('No more keepalive for socket with id ' + socket.id);
     }
 }
 
