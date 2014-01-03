@@ -13,7 +13,7 @@ app.use(express.static(__dirname + '/public'));
 
 var logger = new (winston.Logger)({
     transports: [
-        new (winston.transports.Console)({'timestamp':function() {return new Date().getHours() + ':' + new Date().getMinutes(); }, 'colorize':true, 'level':'info'}),
+        new (winston.transports.Console)({'timestamp':function() {return new Date().getHours() + ':' + new Date().getMinutes(); }, 'colorize':true, 'level':'debug'}),
         new (winston.transports.File)({ filename: 'log', 'timestamp':true, 'level':'verbose'})
     ]
 });
@@ -252,8 +252,10 @@ wss.on('connection', function(socket) {
 
             case 'remote_connection_closed':
 
-                ref.push(socket);                       // add socket to the waiting list
-                wss.clientsInRooms -= 1;
+                if (socket.connected) {                     // in case communication was not entirely established
+                    wss.clientsInRooms -= 1;
+                    ref.push(socket);                       // add socket to the waiting list
+                }
 
                 socket.connected = false;
                 socket.destSock = null;
@@ -274,10 +276,8 @@ wss.on('connection', function(socket) {
                 if (pos >= 0)
                     ref.splice(pos, 1);     // remove socket of disconnected client, if it exists
 
-
                 if (socket.destSock != null) {
 
-                    wss.clientsInRooms -= 1;
                     try {
                         socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
                             type: 'connection_closed'
@@ -287,8 +287,11 @@ wss.on('connection', function(socket) {
 
                     socket.destSock = null;
 
-                    if (!socket.connected)
+                    if (!socket.connected) {
                         logger.warn('Client disconnected when communication was being established');
+                    else
+                        wss.clientsInRooms -= 1;
+                    }
 
                 }
 
