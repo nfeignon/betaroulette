@@ -92,12 +92,7 @@ wss.on('connection', function(socket) {
                                 logger.error('partner not found, error !!!');
                         }
 
-                    } else {
-                        if (socket.destSock == null) {
-                            logger.error('ERROR: received answer but no one is available for chat\nand remote socket doesn\'t exist...');
-                        }
                     }
-
 
                     if (socket.destSock != null) {
                         logger.silly('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + socket.destSock.id);
@@ -105,7 +100,7 @@ wss.on('connection', function(socket) {
                             socket.destSock.send(JSON.stringify(msg));
                         } catch (err) {}
                     } else {
-                        logger.error('ERROR: remote socket doesn\'t exist, message ' + msg.type + ' could not be relayed');
+                        logger.warn('Remote socket doesn\'t exist, ignoring packet ' + msg.type + '...');
                     }
 
 
@@ -287,12 +282,10 @@ wss.on('connection', function(socket) {
 
                     socket.destSock = null;
 
-                    if (!socket.connected) {
+                    if (!socket.connected)
                         logger.warn('Client disconnected when communication was being established');
                     else
                         wss.clientsInRooms -= 1;
-                    }
-
                 }
 
                 if (!socket.connected) {
