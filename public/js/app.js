@@ -237,6 +237,7 @@ function broadcast() {
         pc.addStream(s);
         vid1.src = window.URL.createObjectURL(s);
         vid1.play();
+        console.log(vid1.videoWidth);
 
         sendReadyMsg();
 
