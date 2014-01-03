@@ -276,18 +276,20 @@ wss.on('connection', function(socket) {
 
 
                 if (socket.destSock != null) {
-                    if (socket.connected) {
-                        wss.clientsInRooms -= 1;
-                        try {
-                            socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
-                                type: 'connection_closed'
-                            }));
-                        } catch (err) {}
-                    } else {
-                        logger.error('Error: close message, socket.destSock not null but socket not connected');
-                    }
+
+                    wss.clientsInRooms -= 1;
+                    try {
+                        socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
+                            type: 'connection_closed'
+                        }));
+                    } catch (err) {}
+                    
 
                     socket.destSock = null;
+
+                    if (!socket.connected)
+                        logger.warn('Client disconnected when communication was being established');
+
                 }
 
                 if (!socket.connected) {
