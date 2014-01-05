@@ -146,6 +146,7 @@ var remoteStream;
 var pc;
 var connected = false;
 var sessionReady = false;
+var webcamAvailable = false;
 var mediaConstraints = {
     'mandatory': {
         'OfferToReceiveAudio':true, 
@@ -211,11 +212,14 @@ function sendReadyMsg() {
         setTimeout('sendKeepAlive()', 4000);            // we can start to send keep alive packets
     }
     else
-        setTimeout('sendReadyMsg()', 1000);
+        if (webcamAvailable)
+            setTimeout('sendReadyMsg()', 1000);
+        else
+            alert('Webcam not available');
 }
 
 function isReady() {
-    return localStream && sessionReady && socket.id;
+    return localStream && sessionReady && socket.id && webcamAvailable;
 }
 
 function sendKeepAlive() {
@@ -223,7 +227,7 @@ function sendKeepAlive() {
         type: 'keep_alive'
     }));
 
-    console.log('Sending keep-alive packet...');
+    // console.log('Sending keep-alive packet...');
 
     setTimeout('sendKeepAlive()', 4000);
 }
@@ -237,12 +241,14 @@ function broadcast() {
         pc.addStream(s);
         vid1.src = window.URL.createObjectURL(s);
         vid1.play();
-        console.log(vid1.videoWidth);
 
-        sendReadyMsg();
+        setTimeout(function() {
+            webcamAvailable = vid1.videoWidth != 0;           // wait until we can now if a webcam is available
+            sendReadyMsg();
+        }, 1000);
 
     }, function(e) {
-        console.log('getUserMedia error: ' + e.name);          // FIXME: ERROR NOT FIRED WHEN WEBCAM IS UNAVAILABLE WITH FIREFOX
+        console.log('getUserMedia error: ' + e.name);         // FIXME: ERROR NOT FIRED WHEN WEBCAM IS UNAVAILABLE WITH FIREFOX
         alert('Error: ' + e.name);
         socket.send(JSON.stringify({
             type: 'close'
