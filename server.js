@@ -313,7 +313,7 @@ function closeConnection(socket) {
                 type: 'connection_closed'
             }));
         } catch (err) {
-            logger.err('Error: in closeConnection, failed to send message \'connection_closed\' to partner');
+            logger.error('Error: in closeConnection, failed to send message \'connection_closed\' to partner');
         }
 
         socket.destSock = null;
