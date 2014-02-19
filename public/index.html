@@ -14,26 +14,33 @@
     </head>
  
     <body>
+        <header>
+        </header>
 
-    <p>Hi,</p>
-    <p>We are trying to create our own chatroulette using HTML5 and WebRTC. This is Beta 0.1.</p>
-    
-    <p>Website only works on <a href="http://www.google.com/chrome">Google Chrome</a> or <a href="http://www.mozilla.org/en/firefox">Mozilla Firefox</a>.</p>
-    <p>Firefox and Chrome on Android are partially supported. You should except a few bugs.</p>
+<!--         <p>Hi,</p>
+        <p>We are trying to create our own chatroulette using HTML5 and WebRTC. This is Beta 0.1.</p>
 
-    <video id="vid1" autoplay="" muted="" poster="loading.gif"></video>
-    <video id="vid2" autoplay="" controls="" hidden></video>
+        <p>Website only works on <a href="http://www.google.com/chrome">Google Chrome</a> or <a href="http://www.mozilla.org/en/firefox">Mozilla Firefox</a>.</p>
+        <p>Firefox and Chrome on Android are partially supported. You should except a few bugs.</p> -->
 
-    <input type="button" id="nextButton" value="Next!">
+        <section id="videos">
+            <video id="remoteVideo" autoplay="" controls=""></video>
+            <video id="localVideo" autoplay="" muted="" poster="loading.gif"></video>
+        </section>
 
-    <form action="/" method="post" id="chat_form">
-        <input type="text" name="msg" id="msg" placeholder="Your message..." size="50" autocomplete="off" autofocus />
-        <input type="submit" id="send_msg" value="Send" />
-    </form>
+        <section id="chat">
+            <div id="menu">
+                START NEXT
+                <input type="button" id="nextButton" value="Next!">
+            </div>
 
-    <section id="chat_area">
+            <div id="chat_text">
+            </div>
 
-    </section>
-
+            <form action="/" method="post" id="chat_form">
+                <input type="text" name="msg" id="msg" placeholder="Your message..." autocomplete="off" autofocus />
+                <input type="submit" id="send_msg" value="Send" />
+            </form>
+        </section>
     </body>
 </html>

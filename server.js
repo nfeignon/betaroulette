@@ -29,14 +29,13 @@ wss.clientsWaiting || (wss.clientsWaiting = []);
 wss.clientsInRooms || (wss.clientsInRooms = 0);
 
 
-
 wss.on('connection', function(socket) {
     console.log('------------------------------------------------');
     var ip = socket.upgradeReq.connection.remoteAddress;
     var location = geoip.lookup(ip);
 
     if (location)
-        socket.location = location['city'] + ', ' + location['country'];
+        socket.location = location['country'];
     else
         socket.location = 'unknown';
 
@@ -77,11 +76,10 @@ wss.on('connection', function(socket) {
 
                 if (socket.isReady) {
 
-                    if (ref.length > 1) {
+                    // if we don't have a destination socket
+                    if (socket.destSock == null) {
 
-                        // if we don't have a destination socket
-                        //
-                        if (socket.destSock == null) {
+                        if (ref.length > 1) {
                             for (i = 0; i < ref.length; i++) {
                                 if (ref[i].id !== socket.id) {
                                     socket.destSock = ref[i];
@@ -90,24 +88,28 @@ wss.on('connection', function(socket) {
                             }
                             if (socket.destSock == null)           // if we didn't found a partner to chat with, it should not happen
                                 logger.error('partner not found, error !!!');
-                        }
 
+                        } else {
+                            logger.error('ERROR: trying to find a partner but waiting list is empty');
+                        }
                     }
 
                     if (socket.destSock != null) {
                         logger.silly('Me, ' + socket.id + ' am sending a msg ' + msg.type + ' to ' + socket.destSock.id);
+
                         try {
                             socket.destSock.send(JSON.stringify(msg));
-                        } catch (err) {}
+                        } catch (err) {
+                            logger.error('Error while forwarding message of type '
+                                                + msg.type + ' from ' + socket.id +
+                                                ' to ' + socket.destSock.id + ': ' + err);
+                        }
                     } else {
                         logger.warn('Remote socket doesn\'t exist, ignoring packet ' + msg.type + '...');
                     }
-
-
                 } else {
                     logger.error('ERROR: received ' + msg.type + ' but client was not ready!');
                 }
-
 
                 break;
 
@@ -245,6 +247,21 @@ wss.on('connection', function(socket) {
                 socket.lastKeepAlive = new Date().getTime();
                 break;
 
+            case 'nb_clients':
+                if (socket.connected) {
+                    if (socket.destSock != null) {
+                        socket.destSock.send(JSON.stringify({
+                                type: 'nb_clients',
+                                data: wss.clientsWaiting.length + wss.clientsInRooms
+                        }));
+                    } else {
+                        logger.error('Error with request nb_clients, socket.destSock is null');
+                    }
+                } else {
+                    logger.error('Error with request nb_clients, socket not connected');
+                }
+                break;
+
             case 'remote_connection_closed':
 
                 if (socket.connected) {                     // in case communication was not entirely established
@@ -262,39 +279,7 @@ wss.on('connection', function(socket) {
                 break;
 
             case 'close':
-
-                logger.info('Client ' + 'disconnected'.red + '! id: ' + socket.id);
-
-                socket.keepAlive = false;
-
-                var pos = ref.indexOf(socket);
-                if (pos >= 0)
-                    ref.splice(pos, 1);     // remove socket of disconnected client, if it exists
-
-                if (socket.destSock != null) {
-
-                    try {
-                        socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
-                            type: 'connection_closed'
-                        }));
-                    } catch (err) {}
-                    
-
-                    socket.destSock = null;
-
-                    if (!socket.connected)
-                        logger.warn('Client disconnected when communication was being established');
-                    else
-                        wss.clientsInRooms -= 1;
-                }
-
-                if (!socket.connected) {
-                    socket.connected = false;
-                    printId();
-                }
-
-                socket.close();
-
+                closeConnection(socket);
                 break;
         }
     });
@@ -310,6 +295,43 @@ function isPeerAvailable(sock) {
     }
 }
 
+function closeConnection(socket) {
+    logger.info('Client ' + 'disconnected'.red + '! id: ' + socket.id);
+
+    ref = wss.clientsWaiting;
+
+    socket.keepAlive = false;
+
+    var pos = ref.indexOf(socket);
+    if (pos >= 0)
+        ref.splice(pos, 1);         // remove socket of disconnected client, if it exists
+
+    if (socket.destSock != null) {
+
+        try {
+            socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
+                type: 'connection_closed'
+            }));
+        } catch (err) {
+            logger.err('Error: in closeConnection, failed to send message \'connection_closed\' to partner');
+        }
+
+        socket.destSock = null;
+
+        if (!socket.connected)
+            logger.warn('Client disconnected when communication was being established');
+        else
+            wss.clientsInRooms -= 1;
+    }
+
+    if (!socket.connected) {
+        socket.connected = false;
+        printId();
+    }
+
+    socket.close();
+}
+
 // TODO un intervalle serait peut etre mieux cf setInterval
 function checkKeepAlive(socket) {
     if (socket.keepAlive) {
@@ -317,38 +339,7 @@ function checkKeepAlive(socket) {
 
         if (timeDifference > 6000) {     // 6 seconds
             logger.warn('Client with ID ' + socket.id + ' didn\'t send keep_alive packet for ' + timeDifference + ' ms.');
-            logger.info('Client ' + 'disconnected'.red + '! id: ' + socket.id);
-
-            ref = wss.clientsWaiting;
-
-            socket.keepAlive = false;
-
-            var pos = ref.indexOf(socket);
-            if (pos >= 0)
-                ref.splice(pos, 1);     // remove socket of disconnected client, if it exists
-
-
-            if (socket.destSock != null) {
-                if (socket.connected) {
-                    wss.clientsInRooms -= 1;
-                    try {
-                        socket.destSock.send(JSON.stringify({        // tell that peer is disconnected
-                            type: 'connection_closed'
-                        }));
-                    } catch (err) {}
-                } else {
-                    logger.error('Error: close message, socket.destSock not null but socket not connected');
-                }
-
-                socket.destSock = null;
-            }
-
-            if (!socket.connected) {
-                socket.connected = false;
-                printId();
-            }
-
-            socket.close();
+            closeConnection(socket);
         }
 
         setTimeout(function () {checkKeepAlive(socket)}, 3000);

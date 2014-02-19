@@ -1,13 +1,55 @@
 body {
-  font: 18px/1 Helvetica, Arial, sans-serif;
+    background-color: #F5F5F5;
+    font: 18px/1 Helvetica, Arial, sans-serif;
 }
 
-h1 {
-  margin-bottom: 10px;
+header {
+    height: 100px;
+    margin-bottom: 30px;
+}
+
+#videos {
+    display: inline-block;
+    vertical-align: top;
+    width: 300px;
+    margin-left: 40px;
+}
+
+#remoteVideo {
+    visibility: hidden;
 }
 
 video {
-  width: 300px;
-  height: 300px;
-  margin-right: 20px;
+    width: 300px;
+    height: 300px;
+    margin-bottom: 30px;
+}
+
+#chat {
+    display: inline-block;
+    vertical-align: top;
+    width: 50%;
+    height: 615px;
+    margin-left: 70px;
+    padding: 7px;
+
+    background-color: #F1F1F1;
+    border: 3px solid black;
+}
+
+#menu {
+    background-color: #87CEEB;
+    border: 1px solid black;
+    padding: 1px;
+    margin-bottom: 10px;
+}
+
+#chat_text {
+    height: 90%;
+    overflow: auto;
+    word-wrap: break-word;
+}
+
+#chat_form {
+
 }
