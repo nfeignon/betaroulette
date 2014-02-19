@@ -113,7 +113,7 @@ socket.onmessage = function(message) {
             nextButton.hidden = true;
             remoteVideo.style.visibility = 'hidden';
             $('#msg').val('').focus();
-            $('#chat_area').empty();
+            $('#chat_text').empty();
 
             restartPc();
 
@@ -133,7 +133,7 @@ socket.onmessage = function(message) {
             connected = false;
             nextButton.hidden = true;
             $('#msg').val('').focus();
-            $('#chat_area').empty();
+            $('#chat_text').empty();
 
             restartPc();
 
@@ -252,7 +252,7 @@ function next() {
     nextButton.hidden = true;
     remoteVideo.style.visibility = 'hidden';
     $('#msg').val('').focus();
-    $('#chat_area').empty();
+    $('#chat_text').empty();
 
     socket.send(JSON.stringify({
         type: 'next'
