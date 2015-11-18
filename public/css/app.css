@@ -53,3 +53,11 @@ video {
 #chat_form {
 
 }
+
+#msg {
+    width: 90%;
+}
+
+#send_msg {
+    float: right;
+}
