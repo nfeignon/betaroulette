@@ -2,16 +2,17 @@
   "name": "BetaRoulette",
   "version": "0.0.0",
   "description": "ERROR: No README.md file found!",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ."
   },
   "repository": "",
   "author": "",
   "license": "BSD",
   "dependencies": {
-    "express": "3",
-    "ws": "0.4.x",
+    "express": "*",
+    "ws": "*",
     "node-uuid": "*",
     "ent": "*",
     "geoip-lite": "*",

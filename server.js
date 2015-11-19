@@ -6,6 +6,7 @@ var uuid = require('node-uuid')
 , WebSocketServer = require('ws').Server
 , http = require('http')
 , express = require('express')
+, colors = require('colors')
 , app = express()
 , port = process.env.PORT || 3002;
  
